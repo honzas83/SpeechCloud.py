@@ -1,0 +1,5 @@
+aiohttp
+pyee
+aiortc @ git+ssh://git@github.com/honzas83/aiortc.git
+sounddevice
+numpy
