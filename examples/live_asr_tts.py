@@ -1,13 +1,7 @@
 import asyncio
 import logging
 import argparse
-import sys
-import time
-from fractions import Fraction
-import numpy as np
 import sounddevice as sd
-from av import AudioFrame
-from aiortc import MediaStreamTrack
 from speechcloud import SpeechCloud, AiortcSIPHandler
 from speechcloud.audio import MicrophoneSource, SpeakerSink
 

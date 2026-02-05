@@ -1,8 +1,5 @@
-from speechcloud.dialog import SpeechCloudWS, Dialog, ABNF_INLINE
-import random
-import asyncio
+from speechcloud.dialog import Dialog
 import logging
-from pprint import pprint, pformat
 from collections import Counter
 from speechcloud import SpeechCloudClient
 
@@ -63,8 +60,7 @@ class ServirkaKarel(Dialog):
                     UCET.clear()
                 else:
                     nabidka = list(CENIK.keys())
-                    nabdika = self.spoj_seznam(nabidka, "nebo")
-                    await self.synthesize_and_wait(text=f"Ještě jste si nic neobjednal. Máme třeba {nabidka}.", voice=HLAS)
+                    await self.synthesize_and_wait(text=f"Ještě jste si nic neobjednal. Máme třeba {self.spoj_seznam(nabidka, 'nebo')}.", voice=HLAS)
             else:
                 pocty = Counter()
                 for slovo in rozpoznano.split():
@@ -82,7 +78,7 @@ class ServirkaKarel(Dialog):
                         else:
                             shrnuti.append(f"{pocet} krát {polozka}")
 
-                    shrnuti = "Objednáme "+ self.spoj_seznam(shrnuti, "a") + f"."
+                    shrnuti = "Objednáme "+ self.spoj_seznam(shrnuti, "a") + "."
                     await self.synthesize_and_wait(text=shrnuti, voice=HLAS)
 
 if __name__ == '__main__':
