@@ -4,7 +4,6 @@ import sys
 import abc
 import numpy as np
 from fractions import Fraction
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +148,6 @@ class SpeakerSink(AudioSink):
 
     async def _play(self):
         logger.info(f"Speaker: playback task started for track {self.track.id}")
-        total_samples = 0
         try:
             while not self._stopped:
                 try:

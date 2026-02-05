@@ -2,12 +2,11 @@ from tornado import websocket, web, ioloop, httpserver
 from tornado.log import gen_log
 import asyncio
 import concurrent.futures
-from contextlib import asynccontextmanager
 from pyee.asyncio import AsyncIOEventEmitter as EventEmitter
 import json
 import datetime as dt
 import sys
-from pprint import pprint, pformat
+from pprint import pformat
 from collections import Counter, namedtuple, defaultdict
 import re
 
@@ -79,7 +78,7 @@ class EntityMap(object):
         return iter(self._dict)
 
     def __unicode__(self):
-        return unicode(repr(self))
+        return str(repr(self))
     
     @property
     def first(self):
@@ -220,7 +219,7 @@ class SpeechCloudWS(websocket.WebSocketHandler, EventEmitter):
             task.result()
         except (concurrent.futures.CancelledError, asyncio.CancelledError):
             gen_log.info("Dialog manager was canceled")
-        except:
+        except Exception:
             self.log_dialog_exception(sys.exc_info())
         finally:
             self.close()
@@ -670,7 +669,7 @@ class Dialog(object):
     def _check_finished_result(self, task):
         try:
             task.result()
-        except:
+        except Exception:
             self.logger.exception("Exception in end_session() was ignored:")
         finally:
             self.logger.debug("DM session %s finished", self.session_id)

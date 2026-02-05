@@ -9,7 +9,7 @@ from .sip_interface import SIPInterface
 
 # Handle optional aiortc import
 try:
-    from aiortc import RTCPeerConnection, RTCSessionDescription, MediaStreamTrack
+    from aiortc import RTCPeerConnection, RTCSessionDescription
     from aiortc.rtcrtpparameters import RTCRtpCodecCapability
     HAS_AIORTC = True
 except ImportError:
@@ -188,8 +188,10 @@ class AiortcSIPHandler(SIPInterface):
         lines = sdp.split('\r\n')
         new_lines = []
         for line in lines:
-            if line.startswith("a=extmap:"): continue
-            if line.startswith("a=group:BUNDLE"): continue
+            if line.startswith("a=extmap:"):
+                continue
+            if line.startswith("a=group:BUNDLE"):
+                continue
             new_lines.append(line)
         return '\r\n'.join(new_lines)
 
@@ -259,8 +261,10 @@ class AiortcSIPHandler(SIPInterface):
             if line.startswith("m=audio"):
                 in_audio = True
             if in_audio:
-                if line.startswith("a=mid:"): has_mid = True
-                if line.startswith("a=msid:"): has_msid = True
+                if line.startswith("a=mid:"):
+                    has_mid = True
+                if line.startswith("a=msid:"):
+                    has_msid = True
             new_lines.append(line)
 
         # Re-scan to inject if missing
@@ -274,10 +278,12 @@ class AiortcSIPHandler(SIPInterface):
                     in_audio = True
                 
                 if in_audio and not injected:
-                    if not has_mid: final_lines.append("a=mid:0")
-                    if not has_msid: final_lines.append("a=msid:default default")
+                    if not has_mid:
+                        final_lines.append("a=mid:0")
+                    if not has_msid:
+                        final_lines.append("a=msid:default default")
                     # Ensure direction
-                    if not any(l.startswith("a=send") or l.startswith("a=recv") for l in new_lines if "m=audio" in line):
+                    if not any(line.startswith("a=send") or line.startswith("a=recv") for line in new_lines if "m=audio" in line):
                         final_lines.append("a=sendrecv")
                     injected = True
             return "\r\n".join(final_lines)
@@ -286,7 +292,8 @@ class AiortcSIPHandler(SIPInterface):
 
     async def _handle_auth(self, msg, method):
         auth_header = msg.get_header("WWW-Authenticate") or msg.get_header("Proxy-Authenticate")
-        if not auth_header: return
+        if not auth_header:
+            return
         
         is_proxy = msg.status_code == 407
         params = {}
