@@ -102,6 +102,10 @@ class AiortcSIPHandler(SIPInterface):
         
         self.registered = False
         self.codec_preference = None
+        self._registration_task = None
+        self._keepalive_task = None
+        self._expires = 3600
+        self._last_auth_header = None
 
     async def initialize(self, config: dict, audio_constraints: dict):
         self.config = config
@@ -130,15 +134,48 @@ class AiortcSIPHandler(SIPInterface):
         self._ws = await self._session.ws_connect(self.sip_wss, protocols=['sip'])
         
         asyncio.create_task(self._listen_sip())
-        await self._register()
+        self._registration_task = asyncio.create_task(self._run_registration_loop())
+        self._keepalive_task = asyncio.create_task(self._run_keepalive_loop())
 
     async def disconnect(self):
+        if self._registration_task:
+            self._registration_task.cancel()
+        if self._keepalive_task:
+            self._keepalive_task.cancel()
         if self._pc:
             await self._pc.close()
         if self._ws:
             await self._ws.close()
         if self._session:
             await self._session.close()
+
+    async def _run_registration_loop(self):
+        """Periodically re-register with the SIP server."""
+        while True:
+            try:
+                await self._register(auth_header=self._last_auth_header)
+                # Initial wait or wait after success
+                # We wait for slightly less than the expiration time
+                wait_time = max(10, self._expires - 30)
+                await asyncio.sleep(wait_time)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Registration loop error: {e}")
+                await asyncio.sleep(10) # Retry after 10s on error
+
+    async def _run_keepalive_loop(self):
+        """Send NAT keep-alives (CRLF) every 30 seconds."""
+        while True:
+            try:
+                await asyncio.sleep(30)
+                if self._ws and not self._ws.closed:
+                    # Send a double CRLF as keep-alive
+                    await self._ws.send_str("\r\n\r\n")
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.debug(f"Keep-alive error: {e}")
 
     def set_codec_preferences(self, codec_name):
         self.codec_preference = codec_name
@@ -229,9 +266,19 @@ class AiortcSIPHandler(SIPInterface):
                     await self._handle_auth(msg, "REGISTER")
                 elif msg.status_code == 200:
                     logger.info("SIP Registered")
-                    self.registered = True
-                    # Auto-call if registered
-                    await self.make_call("sip:speechcloud")
+                    
+                    # Update expiration from header
+                    exp_header = msg.get_header("Expires")
+                    if exp_header:
+                        try:
+                            self._expires = int(exp_header)
+                        except ValueError:
+                            pass
+                    
+                    if not self.registered:
+                        self.registered = True
+                        # Auto-call if first successful registration
+                        await self.make_call("sip:speechcloud")
 
             elif cseq_method == "INVITE":
                 if msg.status_code in (401, 407):
@@ -315,11 +362,13 @@ class AiortcSIPHandler(SIPInterface):
         self.branch = "z9hG4bK" + generate_nonce(10)
         
         header_name = "Proxy-Authorization" if is_proxy else "Authorization"
+        auth_val_full = (header_name, auth_val)
         
         if method == "REGISTER":
-            await self._register(auth_header=(header_name, auth_val))
+            self._last_auth_header = auth_val_full
+            await self._register(auth_header=auth_val_full)
         elif method == "INVITE":
-            await self._send_invite(uri, self._pc.localDescription.sdp, auth_header=(header_name, auth_val))
+            await self._send_invite(uri, self._pc.localDescription.sdp, auth_header=auth_val_full)
 
     async def _send(self, msg):
         logger.debug(f"SIP TX:\n{msg}")
